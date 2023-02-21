@@ -223,6 +223,38 @@ def split_rect(rect: FreeRectangle, item:Item, rotated:bool = False):
 
 
 #-------------------------------------- MERGING RECTS -------------------------------------
+def rectangle_merge(freerects):
+    """
+    Rectangle Merge optimization
+    Finds pairs of free rectangles and merges them if they are mergable.
+    """
+    for freerect in freerects:
+        widths_func = lambda r: (r.width == freerect.width and r.x == freerect.x and r != freerect)
+        matching_widths = list(filter(widths_func, freerects))
+        heights_func = lambda r: (r.height == freerect.height and r.y == freerect.y and r != freerect)
+        matching_heights = list(filter(heights_func, freerects))
+        if matching_widths:
+            widths_adjacent = list(filter(lambda r: r.y == freerect.y + freerect.height, matching_widths)) 
+
+            if widths_adjacent:
+                match_rect = widths_adjacent[0]
+                merged_rect = FreeRectangle(freerect.width, freerect.height+match_rect.height, freerect.x, freerect.y)
+                freerects.remove(freerect)
+                freerects.remove(match_rect)
+                freerects.add(merged_rect)
+
+        if matching_heights:
+            heights_adjacent = list(filter(lambda r: r.x == freerect.x + freerect.width, matching_heights))
+            if heights_adjacent:
+                match_rect = heights_adjacent[0]
+                merged_rect = FreeRectangle(freerect.width+match_rect.width,
+                                            freerect.height,
+                                            freerect.x,
+                                            freerect.y)
+                freerects.remove(freerect)
+                freerects.remove(match_rect)
+                freerects.add(merged_rect)
+    return freerects
 
 
 #-------------------------------------- GUILLOTINE MAIN -------------------------------------
@@ -249,6 +281,7 @@ def guillotine(rect_count, truck_count, rects, trucks,remaining_area,score:str="
         if best_rect == None: no_fit=True
 
         #debug
+        print("CURRENT ITEM SIZE: width (%r) height (%r)" %(rects[rect_id].width,rects[rect_id].height) )
         print("BEST_RECT_IS:", best_rect)
         print("LIST OF FREE RECTS at step:", rect_id)
         for rect in free_rects: print(rect)
@@ -264,9 +297,18 @@ def guillotine(rect_count, truck_count, rects, trucks,remaining_area,score:str="
         print()
         print()
 
+       
+
         #keeping track of which bin is containing which item
         rect_in_truck_no.append((rect_id,id))   
         rect_id+=1
+
+        print("ITEM's pack list:" )
+        for i in rect_in_truck_no:
+            print("rect (%d) is in bin (%d)" %(i[0],i[1]))
+
+        print()
+        print()
         
         #add new bin if cannot fit the rect 
         if no_fit == True:
@@ -286,7 +328,6 @@ if __name__ == '__main__':
 
     #limit the time taken per iteration to reduce runtime at the cost of maybe skipped a better optimized solution
     GLOBAL_TIME_LIMIT_PER_ITER = 0.1
-
     rect_count, truck_count, rects, trucks, total_area = read_input(file_path)
 
     # rects: sort them by area in descending order
@@ -295,5 +336,8 @@ if __name__ == '__main__':
     # trucks: sort them by fee per area in ascending order
     trucks.sort(key=fee_per_area)
 
-    print("list of rects")
+    print('CHOOSE scoring heuristic: [ BAF | BSSF | BLSF | WAF | WSSF | WLSF ] \nBAF: Best Area Fit \nBSSF: Best Shortside Fit \nBLSF: Best Longside fit \nWAF: Worst Area Fit \nWSSF: Worst Shortside Fit \nWLSF: Worst Longside Fit')
+    scoring_heuristic = input()
+
+    
     guillotine(rect_count,truck_count,rects,trucks,total_area)
